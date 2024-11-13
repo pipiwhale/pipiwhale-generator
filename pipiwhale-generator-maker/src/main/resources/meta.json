@@ -6,8 +6,9 @@
   "author": "pipiwhale",
   "createTime": "2023-11-22",
   "fileConfig": {
-    "inputRootPath": "D:/developer/workspace/ideaWorkspace/pipiwhale-generator/pipiwhale-generator-demo-projects/acm-template-pro",
+    "inputRootPath": ".source/acm-template-pro",
     "outputRootPath": "generated",
+    "sourceRootPath": "D:\\developer\\workspace\\ideaWorkspace\\pipiwhale-generator\\pipiwhale-generator-demo-projects\\acm-template-pro",
     "type": "dir",
     "files": [
       {
