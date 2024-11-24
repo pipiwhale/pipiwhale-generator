@@ -10,6 +10,7 @@ import com.poke.maker.meta.enums.ModelTypeEnum;
 
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 元信息校验
@@ -33,17 +34,35 @@ public class MetaValidator {
             return;
         }
         for (Meta.ModelConfig.ModelInfo modelInfo : modelInfoList) {
-            // 输出路径默认值
-            String fieldName = modelInfo.getFieldName();
-            if (StrUtil.isBlank(fieldName)) {
-                throw new MetaException("未填写 fieldName");
-            }
+            // 为 group 类型，不校验
+            String groupKey = modelInfo.getGroupKey();
+            if (StrUtil.isNotBlank(groupKey)) {
+                // 生成中间参数
+                String allArgsStr = modelInfo.getModels().stream()
+                        .map(subModelInfo -> String.format("\"--%s\"", subModelInfo.getFieldName()))
+                        .collect(Collectors.joining(", "));
+                modelInfo.setAllArgsStr(allArgsStr);
 
-            // 模型配置
-            String modelInfoType = modelInfo.getType();
-            if (StrUtil.isEmpty(modelInfoType)) {
-                modelInfo.setType(ModelTypeEnum.STRING.getValue());
+                for (Meta.ModelConfig.ModelInfo subModelInfo : modelInfo.getModels()) {
+                    validateModelInfo(subModelInfo);
+                }
+                continue;
             }
+            validateModelInfo(modelInfo);
+        }
+    }
+
+    private static void validateModelInfo(Meta.ModelConfig.ModelInfo modelInfo) {
+        // 输出路径默认值
+        String fieldName = modelInfo.getFieldName();
+        if (StrUtil.isBlank(fieldName)) {
+            throw new MetaException("未填写 fieldName");
+        }
+
+        // 模型配置
+        String modelInfoType = modelInfo.getType();
+        if (StrUtil.isEmpty(modelInfoType)) {
+            modelInfo.setType(ModelTypeEnum.STRING.getValue());
         }
     }
 
@@ -82,44 +101,55 @@ public class MetaValidator {
             return;
         }
         for (Meta.FileConfig.FileInfo fileInfo : fileInfoList) {
-            // inputPath: 必填
-            String inputPath = fileInfo.getInputPath();
-            if (StrUtil.isBlank(inputPath)) {
-                throw new MetaException("未填写 inputPath");
-            }
-
-            // type：默认 inputPath 有文件后缀（如 .java）为 file，否则为 dir
             String type = fileInfo.getType();
-            if (StrUtil.isBlank(type)) {
-                // 无文件后缀
-                if (StrUtil.isBlank(FileUtil.getSuffix(inputPath))) {
-                    fileInfo.setType(FileTypeEnum.DIR.getValue());
-                } else {
-                    fileInfo.setType(FileTypeEnum.FILE.getValue());
+            // 类型为 group，不校验
+            if (FileTypeEnum.GROUP.getValue().equals(type)) {
+                for (Meta.FileConfig.FileInfo subFileInfo : fileInfo.getFiles()) {
+                    validateFileInfo(subFileInfo);
                 }
+                continue;
             }
+            validateFileInfo(fileInfo);
+        }
+    }
 
-            // generateType：如果文件结尾不为 ftl，generateType 默认为 static，否则为 dynamic
-            String generateType = fileInfo.getGenerateType();
-            if (StrUtil.isBlank(generateType)) {
-                // 为动态模板
-                if (inputPath.endsWith(".ftl")) {
-                    generateType = FileGenerateTypeEnum.DYNAMIC.getValue();
-                } else {
-                    generateType = FileGenerateTypeEnum.STATIC.getValue();
-                }
-                fileInfo.setGenerateType(generateType);
+    private static void validateFileInfo(Meta.FileConfig.FileInfo fileInfo) {
+        // inputPath: 必填
+        String inputPath = fileInfo.getInputPath();
+        if (StrUtil.isBlank(inputPath)) {
+            throw new MetaException("未填写 inputPath");
+        }
+
+        // type：默认 inputPath 有文件后缀（如 .java）为 file，否则为 dir
+        String type = fileInfo.getType();
+        if (StrUtil.isBlank(type)) {
+            // 无文件后缀
+            if (StrUtil.isBlank(FileUtil.getSuffix(inputPath))) {
+                fileInfo.setType(FileTypeEnum.DIR.getValue());
+            } else {
+                fileInfo.setType(FileTypeEnum.FILE.getValue());
             }
+        }
 
-            // outputPath: 静态文件默认等于 inputPath，动态文件默认为 inputPath去掉.ftl
-            String outputPath = fileInfo.getOutputPath();
-            if (StrUtil.isEmpty(outputPath)) {
-                if (generateType.equals(FileGenerateTypeEnum.DYNAMIC.getValue())) {
-                    inputPath = inputPath.replace(".ftl", "");
-                }
-                fileInfo.setOutputPath(inputPath);
+        // generateType：如果文件结尾不为 ftl，generateType 默认为 static，否则为 dynamic
+        String generateType = fileInfo.getGenerateType();
+        if (StrUtil.isBlank(generateType)) {
+            // 为动态模板
+            if (inputPath.endsWith(".ftl")) {
+                generateType = FileGenerateTypeEnum.DYNAMIC.getValue();
+            } else {
+                generateType = FileGenerateTypeEnum.STATIC.getValue();
             }
+            fileInfo.setGenerateType(generateType);
+        }
 
+        // outputPath: 静态文件默认等于 inputPath，动态文件默认为 inputPath去掉.ftl
+        String outputPath = fileInfo.getOutputPath();
+        if (StrUtil.isEmpty(outputPath)) {
+            if (generateType.equals(FileGenerateTypeEnum.DYNAMIC.getValue())) {
+                inputPath = inputPath.replace(".ftl", "");
+            }
+            fileInfo.setOutputPath(inputPath);
         }
     }
 
